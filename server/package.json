@@ -7,12 +7,15 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "seed": "node scripts/seed.js",
-    "test": "node scripts/testAuth.js && node scripts/testCustomers.js && node scripts/testLeads.js && node scripts/testFollowUps.js && node scripts/testOpportunities.js",
+    "test": "node scripts/testAuth.js && node scripts/testCustomers.js && node scripts/testLeads.js && node scripts/testFollowUps.js && node scripts/testOpportunities.js && node scripts/testAuditAndUsers.js && node scripts/testReports.js && node scripts/testSecurityAndScoping.js",
     "test:auth": "node scripts/testAuth.js",
     "test:customers": "node scripts/testCustomers.js",
     "test:leads": "node scripts/testLeads.js",
     "test:followups": "node scripts/testFollowUps.js",
-    "test:opportunities": "node scripts/testOpportunities.js"
+    "test:opportunities": "node scripts/testOpportunities.js",
+    "test:users": "node scripts/testAuditAndUsers.js",
+    "test:reports": "node scripts/testReports.js",
+    "test:security": "node scripts/testSecurityAndScoping.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
