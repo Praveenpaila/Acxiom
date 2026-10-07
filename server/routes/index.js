@@ -3,6 +3,7 @@ const authRoutes = require('./authRoutes');
 const customerRoutes = require('./customerRoutes');
 const leadRoutes = require('./leadRoutes');
 const followUpRoutes = require('./followUpRoutes');
+const opportunityRoutes = require('./opportunityRoutes');
 
 const router = express.Router();
 
@@ -20,5 +21,6 @@ router.use('/auth', authRoutes);
 router.use('/customers', customerRoutes);
 router.use('/leads', leadRoutes);
 router.use('/followups', followUpRoutes);
+router.use('/opportunities', opportunityRoutes);
 
 module.exports = router;

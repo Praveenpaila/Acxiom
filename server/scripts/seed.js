@@ -9,6 +9,7 @@ const User = require('../models/User');
 const Customer = require('../models/Customer');
 const Lead = require('../models/Lead');
 const FollowUp = require('../models/FollowUp');
+const Opportunity = require('../models/Opportunity');
 
 const seedData = async () => {
   const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/acxiom_crm';
@@ -360,11 +361,90 @@ const seedData = async () => {
     }
   }
 
+  // 7. Seed realistic sales opportunities
+  const relianceCust = await Customer.findOne({ customerCode: 'CUST-1003' });
+  const hdfcCust = await Customer.findOne({ customerCode: 'CUST-1004' });
+  const airtelCust = await Customer.findOne({ customerCode: 'CUST-1005' });
+
+  const sampleOpportunities = [
+    {
+      name: 'TCS Global Cloud Modernization',
+      customerId: tcsCust?._id,
+      amount: 3500000,
+      stage: 'Proposal',
+      probability: 50,
+      expectedCloseDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
+      status: 'Open',
+      assignedTo: admin._id,
+      createdBy: admin._id,
+      notes: 'Submitted RFP documentation. Decision committee meets next month.',
+    },
+    {
+      name: 'Infosys Analytics Infrastructure',
+      customerId: infosysCust?._id,
+      amount: 2200000,
+      stage: 'Negotiation',
+      probability: 80,
+      expectedCloseDate: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000),
+      status: 'Open',
+      assignedTo: manager._id,
+      createdBy: manager._id,
+      notes: 'Commercial terms agreed. Final legal contract review in progress.',
+    },
+    {
+      name: 'Reliance Retail POS Expansion',
+      customerId: relianceCust?._id,
+      amount: 1850000,
+      stage: 'Qualification',
+      probability: 25,
+      expectedCloseDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+      status: 'Open',
+      assignedTo: exec._id,
+      createdBy: exec._id,
+      notes: 'Initial scope assessment for 150 retail stores.',
+    },
+    {
+      name: 'HDFC Corporate Digital Integration',
+      customerId: hdfcCust?._id,
+      amount: 4800000,
+      stage: 'Won',
+      probability: 100,
+      expectedCloseDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      status: 'Won',
+      assignedTo: exec._id,
+      createdBy: exec._id,
+      notes: 'Contract signed. Advanced billing payment received.',
+    },
+    {
+      name: 'Bharti Airtel 5G Gateway Deal',
+      customerId: airtelCust?._id,
+      amount: 1500000,
+      stage: 'Lost',
+      probability: 0,
+      expectedCloseDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      status: 'Lost',
+      assignedTo: manager._id,
+      createdBy: manager._id,
+      notes: 'Budget redirected towards core infrastructure vendor.',
+    },
+  ];
+
+  for (const oData of sampleOpportunities) {
+    const existing = await Opportunity.findOne({ name: oData.name });
+    if (!existing) {
+      await Opportunity.create(oData);
+      console.log(`Seeded Opportunity: ${oData.name} (₹ ${oData.amount})`);
+    } else {
+      await Opportunity.findByIdAndUpdate(existing._id, oData);
+      console.log(`Updated Opportunity: ${oData.name} (₹ ${oData.amount})`);
+    }
+  }
+
   console.log('\n--- Seed Summary ---');
   console.log(`1. Admin:          ${admin.email} (Name: ${admin.name}, Role: ${admin.role})`);
   console.log(`2. Manager:        ${manager.email} (Name: ${manager.name}, Role: ${manager.role})`);
   console.log(`3. SalesExecutive: ${exec.email} (Name: ${exec.name}, Role: ${exec.role})`);
-  console.log(`Seeded Customers, Leads, and Follow-Up Activities across roles.`);
+  console.log(`Seeded Customers, Leads, Follow-Ups, and Opportunities across roles.`);
   console.log('--------------------\n');
 
   await mongoose.disconnect();
