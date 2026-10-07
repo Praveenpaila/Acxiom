@@ -8,6 +8,7 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const Customer = require('../models/Customer');
 const Lead = require('../models/Lead');
+const FollowUp = require('../models/FollowUp');
 
 const seedData = async () => {
   const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/acxiom_crm';
@@ -272,11 +273,98 @@ const seedData = async () => {
     }
   }
 
+  // 6. Seed realistic follow-up activities (Call, Meeting, Email, Task)
+  const tcsCust = await Customer.findOne({ customerCode: 'CUST-1001' });
+  const infosysCust = await Customer.findOne({ customerCode: 'CUST-1002' });
+  const nykaaLead = await Lead.findOne({ leadCode: 'LEAD-1003' });
+  const zomatoLead = await Lead.findOne({ leadCode: 'LEAD-1001' });
+
+  const sampleFollowUps = [
+    {
+      type: 'Meeting',
+      title: 'TCS Executive RFP Presentation',
+      description: 'Review multi-region CRM scaling architecture with Rohan Mehra.',
+      customerId: tcsCust?._id,
+      dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // in 2 days
+      status: 'Pending',
+      priority: 'High',
+      assignedTo: admin._id,
+      createdBy: admin._id,
+    },
+    {
+      type: 'Call',
+      title: 'Nykaa Q4 Budget Discussion',
+      description: 'Discuss commercial milestones and user licensing with Ritu Verma.',
+      leadId: nykaaLead?._id,
+      dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // tomorrow
+      status: 'Pending',
+      priority: 'High',
+      assignedTo: manager._id,
+      createdBy: manager._id,
+    },
+    {
+      type: 'Email',
+      title: 'Send Enterprise SLA Document to Infosys',
+      description: 'Deliver signed 99.9% uptime SLA and disaster recovery plan.',
+      customerId: infosysCust?._id,
+      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+      status: 'Pending',
+      priority: 'Medium',
+      assignedTo: manager._id,
+      createdBy: manager._id,
+    },
+    {
+      type: 'Task',
+      title: 'Prepare Zomato Pilot Environment',
+      description: 'Provision staging tenant with custom Indian GST invoicing template.',
+      leadId: zomatoLead?._id,
+      dueDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000),
+      status: 'Pending',
+      priority: 'Medium',
+      assignedTo: exec._id,
+      createdBy: exec._id,
+    },
+    {
+      type: 'Call',
+      title: 'Overdue: Follow-up on Initial CRED Demo',
+      description: 'Check in with procurement lead regarding technical clearance.',
+      dueDate: new Date(Date.now() - 24 * 60 * 60 * 1000), // Overdue: yesterday
+      status: 'Pending',
+      priority: 'Urgent',
+      assignedTo: exec._id,
+      createdBy: exec._id,
+    },
+    {
+      type: 'Meeting',
+      title: 'Kickoff Call with TCS Procurement',
+      description: 'Initial vendor onboarding call completed.',
+      customerId: tcsCust?._id,
+      dueDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      status: 'Completed',
+      priority: 'Medium',
+      completedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      completedNotes: 'Vendor code assigned: VC-98124. NDA executed.',
+      assignedTo: admin._id,
+      createdBy: admin._id,
+    },
+  ];
+
+  for (const fData of sampleFollowUps) {
+    const existing = await FollowUp.findOne({ title: fData.title });
+    if (!existing) {
+      await FollowUp.create(fData);
+      console.log(`Seeded FollowUp: [${fData.type}] ${fData.title}`);
+    } else {
+      await FollowUp.findByIdAndUpdate(existing._id, fData);
+      console.log(`Updated FollowUp: [${fData.type}] ${fData.title}`);
+    }
+  }
+
   console.log('\n--- Seed Summary ---');
   console.log(`1. Admin:          ${admin.email} (Name: ${admin.name}, Role: ${admin.role})`);
   console.log(`2. Manager:        ${manager.email} (Name: ${manager.name}, Role: ${manager.role})`);
   console.log(`3. SalesExecutive: ${exec.email} (Name: ${exec.name}, Role: ${exec.role})`);
-  console.log(`Seeded 6 Customers and 5 Leads across roles.`);
+  console.log(`Seeded Customers, Leads, and Follow-Up Activities across roles.`);
   console.log('--------------------\n');
 
   await mongoose.disconnect();
