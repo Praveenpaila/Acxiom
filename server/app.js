@@ -9,8 +9,12 @@ const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 
-// Security headers
-app.use(helmet());
+// Security headers (configure CSP to allow Swagger UI inline assets)
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+  })
+);
 
 // CORS locked to client origin
 const allowedOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
@@ -46,6 +50,23 @@ app.use(cookieParser(process.env.COOKIE_SECRET || 'acxiom_crm_cookie_secret'));
 
 // Prevent NoSQL query injection
 app.use(mongoSanitize());
+
+// Interactive API Documentation (Swagger / OpenAPI 3.0)
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swaggerSpec');
+
+app.get('/api/docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+app.use(
+  '/api/docs',
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    customSiteTitle: 'AcxiomCRM API Documentation',
+    customCss: '.swagger-ui .topbar { background-color: #0f172a; } .swagger-ui .info { margin: 20px 0; }',
+  })
+);
 
 // Mount API routes
 app.use('/api', apiRoutes);
