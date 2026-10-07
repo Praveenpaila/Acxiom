@@ -4,6 +4,8 @@ const customerRoutes = require('./customerRoutes');
 const leadRoutes = require('./leadRoutes');
 const followUpRoutes = require('./followUpRoutes');
 const opportunityRoutes = require('./opportunityRoutes');
+const userRoutes = require('./userRoutes');
+const auditRoutes = require('./auditRoutes');
 
 const router = express.Router();
 
@@ -22,5 +24,7 @@ router.use('/customers', customerRoutes);
 router.use('/leads', leadRoutes);
 router.use('/followups', followUpRoutes);
 router.use('/opportunities', opportunityRoutes);
+router.use('/users', userRoutes);
+router.use('/audit', auditRoutes);
 
 module.exports = router;

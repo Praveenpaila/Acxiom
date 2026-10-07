@@ -5,6 +5,7 @@ const Lead = require('../models/Lead');
 const Opportunity = require('../models/Opportunity');
 const AppError = require('../utils/appError');
 const { isDateBeforeToday } = require('../validators/followUpValidator');
+const auditService = require('./auditService');
 
 class FollowUpService {
   async getScopedUserFilter(user) {
@@ -179,6 +180,21 @@ class FollowUpService {
     });
 
     await followUp.save();
+
+    await auditService.log({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'CREATE',
+      entityName: 'FOLLOWUP',
+      recordId: followUp._id,
+      newValue: {
+        type: followUp.type,
+        title: followUp.title,
+        dueDate: followUp.dueDate,
+        priority: followUp.priority,
+      },
+    });
+
     return followUp.populate(['assignedTo', 'customerId', 'leadId', 'opportunityId']);
   }
 
@@ -194,6 +210,7 @@ class FollowUpService {
       throw new AppError('Follow-up date cannot be earlier than today.', 400);
     }
 
+    const oldDate = item.dueDate;
     item.dueDate = new Date(data.dueDate);
     item.status = 'Pending'; // Remains or resets to active Pending with new date
 
@@ -204,6 +221,17 @@ class FollowUpService {
     }
 
     await item.save();
+
+    await auditService.log({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'UPDATE',
+      entityName: 'FOLLOWUP',
+      recordId: item._id,
+      oldValue: { dueDate: oldDate },
+      newValue: { dueDate: item.dueDate, rescheduledNotes: data.notes },
+    });
+
     return item.populate(['assignedTo', 'customerId', 'leadId', 'opportunityId']);
   }
 
@@ -216,6 +244,17 @@ class FollowUpService {
     item.completedNotes = (data.completedNotes || '').trim();
 
     await item.save();
+
+    await auditService.log({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'UPDATE',
+      entityName: 'FOLLOWUP',
+      recordId: item._id,
+      oldValue: { status: 'Pending' },
+      newValue: { status: 'Completed', completedNotes: item.completedNotes },
+    });
+
     return item.populate(['assignedTo', 'customerId', 'leadId', 'opportunityId']);
   }
 
@@ -224,6 +263,15 @@ class FollowUpService {
     await this.verifyAccess(item, user);
 
     await FollowUp.findByIdAndDelete(id);
+
+    await auditService.log({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'DELETE',
+      entityName: 'FOLLOWUP',
+      recordId: item._id,
+    });
+
     return { message: 'Follow-up activity deleted successfully.', deleted: true };
   }
 }

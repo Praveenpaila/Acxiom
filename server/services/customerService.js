@@ -1,6 +1,7 @@
 const Customer = require('../models/Customer');
 const User = require('../models/User');
 const AppError = require('../utils/appError');
+const auditService = require('./auditService');
 
 class CustomerService {
   // Build role-based scoping filter
@@ -164,6 +165,20 @@ class CustomerService {
     });
 
     await customer.save();
+
+    await auditService.log({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'CREATE',
+      entityName: 'CUSTOMER',
+      recordId: customer._id,
+      newValue: {
+        customerCode: customer.customerCode,
+        name: customer.name,
+        company: customer.company,
+      },
+    });
+
     return customer.populate('createdBy', 'name email role');
   }
 
@@ -171,6 +186,14 @@ class CustomerService {
   async updateCustomer(id, data, user) {
     const customer = await Customer.findById(id);
     await this.verifyCustomerAccess(customer, user);
+
+    const oldValue = {
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone,
+      company: customer.company,
+      status: customer.status,
+    };
 
     if (data.email) {
       const normalizedEmail = data.email.trim().toLowerCase();
@@ -208,6 +231,25 @@ class CustomerService {
     if (data.status !== undefined) customer.status = data.status;
 
     await customer.save();
+
+    const newValue = {
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone,
+      company: customer.company,
+      status: customer.status,
+    };
+
+    await auditService.log({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'UPDATE',
+      entityName: 'CUSTOMER',
+      recordId: customer._id,
+      oldValue,
+      newValue,
+    });
+
     return customer.populate('createdBy', 'name email role');
   }
 
@@ -220,10 +262,29 @@ class CustomerService {
     if (user.role === 'SalesExecutive') {
       customer.status = 'Inactive';
       await customer.save();
+
+      await auditService.log({
+        userId: user._id,
+        userEmail: user.email,
+        action: 'STATUS_CHANGE',
+        entityName: 'CUSTOMER',
+        recordId: customer._id,
+        newValue: { status: 'Inactive' },
+      });
+
       return { message: 'Customer deactivated successfully.', deactivated: true };
     }
 
     await Customer.findByIdAndDelete(id);
+
+    await auditService.log({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'DELETE',
+      entityName: 'CUSTOMER',
+      recordId: customer._id,
+    });
+
     return { message: 'Customer deleted successfully.', deleted: true };
   }
 }

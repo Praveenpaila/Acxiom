@@ -4,6 +4,7 @@ const Customer = require('../models/Customer');
 const Opportunity = require('../models/Opportunity');
 const AppError = require('../utils/appError');
 const { validateStatusTransition } = require('./leadWorkflow');
+const auditService = require('./auditService');
 
 class LeadService {
   async getScopedUserFilter(user) {
@@ -170,6 +171,16 @@ class LeadService {
     });
 
     await lead.save();
+
+    await auditService.log({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'CREATE',
+      entityName: 'LEAD',
+      recordId: lead._id,
+      newValue: { leadCode: lead.leadCode, name: lead.name, company: lead.company, status: lead.status },
+    });
+
     return lead.populate(['assignedTo', 'createdBy']);
   }
 
@@ -180,6 +191,15 @@ class LeadService {
     if (lead.status === 'Converted') {
       throw new AppError('Converted leads cannot be modified.', 400);
     }
+
+    const oldValue = {
+      name: lead.name,
+      email: lead.email,
+      phone: lead.phone,
+      company: lead.company,
+      status: lead.status,
+      assignedTo: lead.assignedTo,
+    };
 
     if (data.assignedTo) {
       const assignedUser = await User.findById(data.assignedTo);
@@ -198,6 +218,24 @@ class LeadService {
     if (data.notes !== undefined) lead.notes = data.notes.trim();
 
     await lead.save();
+
+    await auditService.log({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'UPDATE',
+      entityName: 'LEAD',
+      recordId: lead._id,
+      oldValue,
+      newValue: {
+        name: lead.name,
+        email: lead.email,
+        phone: lead.phone,
+        company: lead.company,
+        status: lead.status,
+        assignedTo: lead.assignedTo,
+      },
+    });
+
     return lead.populate(['assignedTo', 'createdBy']);
   }
 
@@ -212,8 +250,20 @@ class LeadService {
     // Enforce state transition rules
     validateStatusTransition(lead.status, targetStatus);
 
+    const oldStatus = lead.status;
     lead.status = targetStatus;
     await lead.save();
+
+    await auditService.log({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'STATUS_CHANGE',
+      entityName: 'LEAD',
+      recordId: lead._id,
+      oldValue: { status: oldStatus },
+      newValue: { status: targetStatus },
+    });
+
     return lead.populate(['assignedTo', 'createdBy']);
   }
 
@@ -252,6 +302,15 @@ class LeadService {
         createdBy: user._id,
       });
       await customer.save();
+
+      await auditService.log({
+        userId: user._id,
+        userEmail: user.email,
+        action: 'CREATE',
+        entityName: 'CUSTOMER',
+        recordId: customer._id,
+        newValue: { customerCode: customer.customerCode, name: customer.name },
+      });
     }
 
     // 2. Validate expected close date if specified
@@ -290,12 +349,33 @@ class LeadService {
     });
     await opportunity.save();
 
+    await auditService.log({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'CREATE',
+      entityName: 'OPPORTUNITY',
+      recordId: opportunity._id,
+      newValue: { name: opportunity.name, amount: opportunity.amount },
+    });
+
     // 4. Update lead status to Converted and link records
     lead.status = 'Converted';
     lead.convertedCustomerId = customer._id;
     lead.convertedOpportunityId = opportunity._id;
     lead.convertedAt = new Date();
     await lead.save();
+
+    await auditService.log({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'LEAD_CONVERTED',
+      entityName: 'LEAD',
+      recordId: lead._id,
+      newValue: {
+        convertedCustomerId: customer._id,
+        convertedOpportunityId: opportunity._id,
+      },
+    });
 
     return {
       lead: await lead.populate(['assignedTo', 'convertedCustomerId', 'convertedOpportunityId']),
@@ -313,6 +393,15 @@ class LeadService {
     }
 
     await Lead.findByIdAndDelete(id);
+
+    await auditService.log({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'DELETE',
+      entityName: 'LEAD',
+      recordId: lead._id,
+    });
+
     return { message: 'Lead deleted successfully.', deleted: true };
   }
 }

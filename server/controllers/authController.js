@@ -5,7 +5,7 @@ const { toUserDto } = require('../utils/userDto');
 class AuthController {
   async register(req, res, next) {
     try {
-      const { user, token } = await authService.register(req.body);
+      const { user, token } = await authService.register(req.body, req);
       setAuthCookie(res, token);
 
       res.status(201).json({
@@ -20,7 +20,7 @@ class AuthController {
 
   async login(req, res, next) {
     try {
-      const { user, token } = await authService.login(req.body);
+      const { user, token } = await authService.login(req.body, req);
       setAuthCookie(res, token);
 
       res.status(200).json({

@@ -4,6 +4,7 @@ const Lead = require('../models/Lead');
 const User = require('../models/User');
 const AppError = require('../utils/appError');
 const { isCloseDateInPast } = require('../validators/opportunityValidator');
+const auditService = require('./auditService');
 
 class OpportunityService {
   async getScopedUserFilter(user) {
@@ -170,12 +171,37 @@ class OpportunityService {
     });
 
     await opp.save();
+
+    await auditService.log({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'CREATE',
+      entityName: 'OPPORTUNITY',
+      recordId: opp._id,
+      newValue: {
+        name: opp.name,
+        amount: opp.amount,
+        stage: opp.stage,
+        probability: opp.probability,
+        status: opp.status,
+      },
+    });
+
     return opp.populate(['customerId', 'leadId', 'assignedTo', 'createdBy']);
   }
 
   async updateOpportunity(id, data, user) {
     const opp = await Opportunity.findById(id);
     await this.verifyAccess(opp, user);
+
+    const oldValue = {
+      name: opp.name,
+      amount: opp.amount,
+      stage: opp.stage,
+      probability: opp.probability,
+      status: opp.status,
+      expectedCloseDate: opp.expectedCloseDate,
+    };
 
     if (data.customerId) {
       const customer = await Customer.findById(data.customerId);
@@ -216,6 +242,24 @@ class OpportunityService {
     if (data.notes !== undefined) opp.notes = data.notes.trim();
 
     await opp.save();
+
+    await auditService.log({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'UPDATE',
+      entityName: 'OPPORTUNITY',
+      recordId: opp._id,
+      oldValue,
+      newValue: {
+        name: opp.name,
+        amount: opp.amount,
+        stage: opp.stage,
+        probability: opp.probability,
+        status: opp.status,
+        expectedCloseDate: opp.expectedCloseDate,
+      },
+    });
+
     return opp.populate(['customerId', 'leadId', 'assignedTo', 'createdBy']);
   }
 
@@ -224,6 +268,15 @@ class OpportunityService {
     await this.verifyAccess(opp, user);
 
     await Opportunity.findByIdAndDelete(id);
+
+    await auditService.log({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'DELETE',
+      entityName: 'OPPORTUNITY',
+      recordId: opp._id,
+    });
+
     return { message: 'Opportunity deleted successfully.', deleted: true };
   }
 
