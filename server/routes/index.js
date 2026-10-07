@@ -6,6 +6,7 @@ const followUpRoutes = require('./followUpRoutes');
 const opportunityRoutes = require('./opportunityRoutes');
 const userRoutes = require('./userRoutes');
 const auditRoutes = require('./auditRoutes');
+const reportRoutes = require('./reportRoutes');
 
 const router = express.Router();
 
@@ -26,5 +27,6 @@ router.use('/followups', followUpRoutes);
 router.use('/opportunities', opportunityRoutes);
 router.use('/users', userRoutes);
 router.use('/audit', auditRoutes);
+router.use('/', reportRoutes);
 
 module.exports = router;

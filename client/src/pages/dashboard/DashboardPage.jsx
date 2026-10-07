@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import PageHeader from '../../components/common/PageHeader';
 import StatCard from '../../components/common/StatCard';
+import { reportApi } from '../../api/reportApi';
 import {
   Users,
   UserCheck,
@@ -11,9 +12,10 @@ import {
   IndianRupee,
   CalendarCheck,
   Target,
-  ArrowUpRight,
+  RefreshCw,
+  Trophy,
 } from 'lucide-react';
-import { formatCompactCurrency, getRoleBadgeClass } from '../../utils/formatters';
+import { formatCompactCurrency, formatCurrency, getRoleBadgeClass } from '../../utils/formatters';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -27,7 +29,7 @@ import {
   LineElement,
   Filler,
 } from 'chart.js';
-import { Doughnut, Bar, Line } from 'react-chartjs-2';
+import { Doughnut, Bar } from 'react-chartjs-2';
 
 ChartJS.register(
   CategoryScale,
@@ -44,104 +46,141 @@ ChartJS.register(
 
 const DashboardPage = () => {
   const { user } = useAuth();
+  const [data, setData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Initial mockup metrics for Dashboard Shell
+  const fetchStats = async () => {
+    setIsLoading(true);
+    try {
+      const res = await reportApi.getDashboardStats();
+      setData(res.stats);
+    } catch (err) {
+      console.error('Failed to load dashboard statistics:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const kpis = data?.kpis || {
+    totalCustomers: 0,
+    totalLeads: 0,
+    openLeads: 0,
+    convertedLeads: 0,
+    conversionRate: 0,
+    totalOpportunities: 0,
+    openDealsCount: 0,
+    wonDealsCount: 0,
+    wonDealsAmount: 0,
+    totalPipelineValue: 0,
+    weightedPipelineValue: 0,
+    pendingFollowUps: 0,
+    overdueFollowUps: 0,
+    completedFollowUps: 0,
+  };
+
   const metrics = [
     {
       title: 'Total Customers',
-      value: '48',
-      subtext: '+4 new this month',
+      value: kpis.totalCustomers.toString(),
+      subtext: 'Active client accounts',
       icon: Users,
       variant: 'indigo',
     },
     {
       title: 'Total Leads',
-      value: '134',
-      subtext: 'Across all channels',
+      value: kpis.totalLeads.toString(),
+      subtext: `${kpis.conversionRate}% conversion rate`,
       icon: UserCheck,
       variant: 'sky',
     },
     {
-      title: 'Open Leads',
-      value: '52',
-      subtext: 'Awaiting qualification',
-      icon: Target,
-      variant: 'amber',
-    },
-    {
-      title: 'Pipeline Value',
-      value: formatCompactCurrency(3850000),
-      subtext: 'Weighted forecast',
+      title: 'Active Pipeline',
+      value: formatCompactCurrency(kpis.totalPipelineValue),
+      subtext: `Weighted: ${formatCompactCurrency(kpis.weightedPipelineValue)}`,
       icon: IndianRupee,
       variant: 'purple',
     },
     {
-      title: 'Total Opportunities',
-      value: '26',
-      subtext: 'Active deal cycle',
-      icon: TrendingUp,
-      variant: 'indigo',
-    },
-    {
       title: 'Deals Won',
-      value: '14',
-      subtext: '₹24.8 L closed revenue',
+      value: kpis.wonDealsCount.toString(),
+      subtext: `${formatCompactCurrency(kpis.wonDealsAmount)} closed revenue`,
       icon: Award,
       variant: 'green',
     },
     {
-      title: 'Deals Lost',
-      value: '5',
-      subtext: 'Win rate: 73.6%',
-      icon: AlertTriangle,
-      variant: 'rose',
+      title: 'Open Deals',
+      value: kpis.openDealsCount.toString(),
+      subtext: `${kpis.totalOpportunities} total opportunities`,
+      icon: TrendingUp,
+      variant: 'amber',
+    },
+    {
+      title: 'Open Leads',
+      value: kpis.openLeads.toString(),
+      subtext: `${kpis.convertedLeads} converted`,
+      icon: Target,
+      variant: 'sky',
     },
     {
       title: 'Pending Follow-Ups',
-      value: '9',
-      subtext: '2 overdue today',
+      value: kpis.pendingFollowUps.toString(),
+      subtext: `${kpis.overdueFollowUps} overdue activities`,
       icon: CalendarCheck,
-      variant: 'amber',
+      variant: kpis.overdueFollowUps > 0 ? 'rose' : 'amber',
+    },
+    {
+      title: 'Completed Activities',
+      value: kpis.completedFollowUps.toString(),
+      subtext: 'Touchpoints logged',
+      icon: Award,
+      variant: 'green',
     },
   ];
 
-  // Lead status doughnut chart data
-  const leadStatusData = {
-    labels: ['New', 'Contacted', 'Qualified', 'Unqualified'],
+  // Lead status doughnut chart
+  const leadsByStatus = data?.charts?.leadsByStatus || {
+    New: 0,
+    Contacted: 0,
+    Qualified: 0,
+    Unqualified: 0,
+    Converted: 0,
+  };
+
+  const leadStatusChartData = {
+    labels: Object.keys(leadsByStatus),
     datasets: [
       {
-        data: [28, 42, 35, 12],
-        backgroundColor: ['#6366f1', '#0ea5e9', '#10b981', '#64748b'],
+        data: Object.values(leadsByStatus),
+        backgroundColor: ['#6366f1', '#0ea5e9', '#10b981', '#64748b', '#8b5cf6'],
         borderWidth: 0,
       },
     ],
   };
 
-  // Opportunity pipeline stages bar chart data
-  const pipelineData = {
-    labels: ['Qualification', 'Proposal', 'Negotiation', 'Won'],
-    datasets: [
-      {
-        label: 'Deal Value (₹ in Lakhs)',
-        data: [8.5, 14.2, 11.0, 24.8],
-        backgroundColor: '#4f46e5',
-        borderRadius: 6,
-      },
-    ],
+  // Pipeline stage bar chart
+  const pipelineByStage = data?.charts?.pipelineByStage || {
+    Qualification: { count: 0, amount: 0 },
+    Proposal: { count: 0, amount: 0 },
+    Negotiation: { count: 0, amount: 0 },
+    Won: { count: 0, amount: 0 },
+    Lost: { count: 0, amount: 0 },
   };
 
-  // Monthly revenue trend line chart data
-  const revenueTrendData = {
-    labels: ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
+  const pipelineStages = Object.keys(pipelineByStage);
+  const pipelineAmounts = pipelineStages.map((s) => Math.round((pipelineByStage[s]?.amount || 0) / 100000)); // In Lakhs
+
+  const pipelineChartData = {
+    labels: pipelineStages,
     datasets: [
       {
-        label: 'Sales Revenue (₹ Lakhs)',
-        data: [4.2, 6.8, 8.5, 12.1, 18.4, 24.8],
-        borderColor: '#10b981',
-        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-        fill: true,
-        tension: 0.35,
-        pointBackgroundColor: '#10b981',
+        label: 'Deal Value (₹ Lakhs)',
+        data: pipelineAmounts,
+        backgroundColor: ['#6366f1', '#0ea5e9', '#f59e0b', '#10b981', '#f43f5e'],
+        borderRadius: 6,
       },
     ],
   };
@@ -151,19 +190,16 @@ const DashboardPage = () => {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        labels: {
-          color: '#94a3b8',
-          font: { family: 'Inter', size: 12 },
-        },
+        display: false,
       },
     },
     scales: {
       x: {
-        ticks: { color: '#64748b' },
+        ticks: { color: '#94a3b8' },
         grid: { color: 'rgba(255, 255, 255, 0.05)' },
       },
       y: {
-        ticks: { color: '#64748b' },
+        ticks: { color: '#94a3b8' },
         grid: { color: 'rgba(255, 255, 255, 0.05)' },
       },
     },
@@ -178,21 +214,32 @@ const DashboardPage = () => {
         labels: {
           color: '#94a3b8',
           boxWidth: 12,
-          padding: 15,
-          font: { family: 'Inter', size: 12 },
+          padding: 12,
+          font: { family: 'Inter', size: 11 },
         },
       },
     },
-    cutout: '72%',
+    cutout: '70%',
   };
+
+  const team = data?.teamPerformance || [];
 
   return (
     <div>
       <PageHeader
         title={`Welcome back, ${user?.name}`}
-        subtitle={`Scope: ${user?.role} view • Showing real-time pipeline and sales analytics.`}
+        subtitle={`Scope: ${user?.role} view • Real-time pipeline, conversion rates, and activities.`}
       >
-        <span className={getRoleBadgeClass(user?.role)}>{user?.role}</span>
+        <div className="d-flex align-items-center gap-2">
+          <button
+            className="btn btn-crm-secondary p-2 d-flex align-items-center gap-1"
+            title="Refresh Metrics"
+            onClick={fetchStats}
+          >
+            <RefreshCw size={14} className={isLoading ? 'spin' : ''} />
+          </button>
+          <span className={getRoleBadgeClass(user?.role)}>{user?.role}</span>
+        </div>
       </PageHeader>
 
       {/* Metric Cards Grid */}
@@ -212,84 +259,73 @@ const DashboardPage = () => {
 
       {/* Analytics Charts Row */}
       <div className="row g-3 mb-4">
-        <div className="col-12 col-lg-4">
-          <div className="crm-card h-100">
-            <h5 className="fw-semibold mb-1">Lead Breakdown</h5>
-            <p className="text-muted small mb-3">Distribution by conversion stage</p>
-            <div style={{ height: '240px' }}>
-              <Doughnut data={leadStatusData} options={doughnutOptions} />
-            </div>
-          </div>
-        </div>
-
-        <div className="col-12 col-lg-8">
-          <div className="crm-card h-100">
-            <h5 className="fw-semibold mb-1">Deal Pipeline Stages</h5>
-            <p className="text-muted small mb-3">Weighted deal value across sales cycle</p>
-            <div style={{ height: '240px' }}>
-              <Bar data={pipelineData} options={chartOptions} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Revenue Trend & Quick Activities Row */}
-      <div className="row g-3">
-        <div className="col-12 col-lg-7">
-          <div className="crm-card h-100">
-            <div className="d-flex align-items-center justify-content-between mb-3">
-              <div>
-                <h5 className="fw-semibold mb-1">Sales Revenue Performance</h5>
-                <p className="text-muted small m-0">Monthly closed deals trajectory</p>
-              </div>
-              <div className="badge bg-success bg-opacity-25 text-success d-flex align-items-center gap-1">
-                <ArrowUpRight size={14} /> +34.8% YoY
-              </div>
-            </div>
-            <div style={{ height: '220px' }}>
-              <Line data={revenueTrendData} options={chartOptions} />
-            </div>
-          </div>
-        </div>
-
         <div className="col-12 col-lg-5">
           <div className="crm-card h-100">
-            <h5 className="fw-semibold mb-1">Upcoming Follow-Ups</h5>
-            <p className="text-muted small mb-3">High priority scheduled touchpoints</p>
-            <div className="d-flex flex-column gap-2">
-              <div className="p-2 rounded bg-dark border border-secondary border-opacity-10 d-flex align-items-center justify-content-between">
-                <div>
-                  <div className="fw-semibold small text-white">Tata Consultancy Deal Review</div>
-                  <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                    Meeting with Amit Roy • Today, 3:30 PM
-                  </div>
-                </div>
-                <span className="badge bg-warning bg-opacity-25 text-warning small">Pending</span>
-              </div>
+            <h5 className="fw-semibold mb-1 text-white">Lead Funnel Distribution</h5>
+            <p className="text-muted small mb-3">Live status breakdown across CRM leads</p>
+            <div style={{ height: '240px' }}>
+              <Doughnut data={leadStatusChartData} options={doughnutOptions} />
+            </div>
+          </div>
+        </div>
 
-              <div className="p-2 rounded bg-dark border border-secondary border-opacity-10 d-flex align-items-center justify-content-between">
-                <div>
-                  <div className="fw-semibold small text-white">Infosys Proposal Follow-Up</div>
-                  <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                    Call with Sneha Patel • Tomorrow, 11:00 AM
-                  </div>
-                </div>
-                <span className="badge bg-info bg-opacity-25 text-info small">Call</span>
-              </div>
-
-              <div className="p-2 rounded bg-dark border border-secondary border-opacity-10 d-flex align-items-center justify-content-between">
-                <div>
-                  <div className="fw-semibold small text-white">Reliance Retail Contract</div>
-                  <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                    Contract send-off • Friday, 4:00 PM
-                  </div>
-                </div>
-                <span className="badge bg-primary bg-opacity-25 text-primary small">Task</span>
-              </div>
+        <div className="col-12 col-lg-7">
+          <div className="crm-card h-100">
+            <h5 className="fw-semibold mb-1 text-white">Revenue Pipeline by Stage</h5>
+            <p className="text-muted small mb-3">Aggregated opportunity value (₹ in Lakhs)</p>
+            <div style={{ height: '240px' }}>
+              <Bar data={pipelineChartData} options={chartOptions} />
             </div>
           </div>
         </div>
       </div>
+
+      {/* Team Leaderboard / Performance for Manager and Admin */}
+      {team.length > 0 && (
+        <div className="crm-card mb-4 p-0 overflow-hidden">
+          <div className="p-3 border-bottom border-dark d-flex align-items-center gap-2">
+            <Trophy size={18} className="text-warning" />
+            <h6 className="fw-semibold text-white mb-0">Sales Team Leaderboard & Velocity</h6>
+          </div>
+          <div className="table-responsive">
+            <table className="table table-dark table-hover crm-table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th className="ps-3">Executive</th>
+                  <th>Role</th>
+                  <th>Leads Managed</th>
+                  <th>Open Opportunities</th>
+                  <th>Deals Won</th>
+                  <th className="text-end pe-3">Won Revenue</th>
+                </tr>
+              </thead>
+              <tbody>
+                {team.map((member, i) => (
+                  <tr key={member.id || i}>
+                    <td className="ps-3">
+                      <div className="fw-semibold text-white">{member.name}</div>
+                      <div className="text-muted small">{member.email}</div>
+                    </td>
+                    <td>
+                      <span className={`badge ${getRoleBadgeClass(member.role)}`}>{member.role}</span>
+                    </td>
+                    <td className="text-muted">{member.totalLeads}</td>
+                    <td className="text-muted">{member.openDeals}</td>
+                    <td>
+                      <span className="badge bg-success-subtle text-success border border-success-subtle">
+                        {member.wonCount} Won
+                      </span>
+                    </td>
+                    <td className="text-end pe-3 fw-bold text-success font-monospace">
+                      {formatCurrency(member.wonRevenue)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
