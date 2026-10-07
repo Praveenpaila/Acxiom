@@ -6,8 +6,9 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const mongoose = require('mongoose');
 const User = require('../models/User');
+const Customer = require('../models/Customer');
 
-const seedUsers = async () => {
+const seedData = async () => {
   const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/acxiom_crm';
 
   console.log(`Connecting to database at ${uri}...`);
@@ -35,7 +36,7 @@ const seedUsers = async () => {
   } else {
     admin.name = process.env.SEED_ADMIN_NAME || 'Rajesh Sharma';
     admin.phone = process.env.SEED_ADMIN_PHONE || '9820123456';
-    admin.password = adminPassword; // Will trigger pre-save bcrypt hash
+    admin.password = adminPassword;
     admin.role = 'Admin';
     admin.isActive = true;
     admin.failedLoginCount = 0;
@@ -100,17 +101,108 @@ const seedUsers = async () => {
     console.log(`Updated SalesExecutive user: ${exec.email}`);
   }
 
+  // 4. Seed realistic Indian enterprise customers
+  const sampleCustomers = [
+    {
+      customerCode: 'CUST-1001',
+      name: 'Rohan Mehra',
+      company: 'Tata Consultancy Services',
+      email: 'rohan.mehra@tcs-demo.in',
+      phone: '9820011223',
+      city: 'Mumbai',
+      state: 'Maharashtra',
+      address: 'TCS House, Raveline Street, Fort',
+      status: 'Active',
+      createdBy: admin._id,
+    },
+    {
+      customerCode: 'CUST-1002',
+      name: 'Ananya Deshmukh',
+      company: 'Infosys Limited',
+      email: 'ananya.deshmukh@infosys-demo.in',
+      phone: '9833011223',
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      address: 'Electronics City, Hosur Road',
+      status: 'Active',
+      createdBy: manager._id,
+    },
+    {
+      customerCode: 'CUST-1003',
+      name: 'Vikram Singhania',
+      company: 'Reliance Retail Ventures',
+      email: 'vikram.singhania@reliance-demo.in',
+      phone: '9844011223',
+      city: 'Mumbai',
+      state: 'Maharashtra',
+      address: 'Maker Chambers IV, Nariman Point',
+      status: 'Active',
+      createdBy: exec._id,
+    },
+    {
+      customerCode: 'CUST-1004',
+      name: 'Sneha Kulkarni',
+      company: 'HDFC Bank Corporate',
+      email: 'sneha.kulkarni@hdfc-demo.in',
+      phone: '9855011223',
+      city: 'Mumbai',
+      state: 'Maharashtra',
+      address: 'HDFC Bank House, Senapati Bapat Marg',
+      status: 'Active',
+      createdBy: exec._id,
+    },
+    {
+      customerCode: 'CUST-1005',
+      name: 'Karthik Ramanathan',
+      company: 'Bharti Airtel Enterprise',
+      email: 'karthik.raman@airtel-demo.in',
+      phone: '9866011223',
+      city: 'Gurugram',
+      state: 'Haryana',
+      address: 'Airtel Center, Plot 16, Udyog Vihar',
+      status: 'Active',
+      createdBy: manager._id,
+    },
+    {
+      customerCode: 'CUST-1006',
+      name: 'Deepak Chawla',
+      company: 'Mahindra & Mahindra',
+      email: 'deepak.chawla@mahindra-demo.in',
+      phone: '9877011223',
+      city: 'Pune',
+      state: 'Maharashtra',
+      address: 'Mahindra Towers, Akurli Road',
+      status: 'Active',
+      createdBy: admin._id,
+    },
+  ];
+
+  for (const cData of sampleCustomers) {
+    const existing = await Customer.findOne({
+      $or: [{ email: cData.email }, { phone: cData.phone }],
+    });
+
+    if (!existing) {
+      await Customer.create(cData);
+      console.log(`Seeded Customer: ${cData.customerCode} - ${cData.company}`);
+    } else {
+      await Customer.findByIdAndUpdate(existing._id, cData);
+      console.log(`Updated Customer: ${cData.customerCode} - ${cData.company}`);
+    }
+  }
+
   console.log('\n--- Seed Summary ---');
   console.log(`1. Admin:          ${admin.email} (Name: ${admin.name}, Role: ${admin.role})`);
   console.log(`2. Manager:        ${manager.email} (Name: ${manager.name}, Role: ${manager.role})`);
   console.log(`3. SalesExecutive: ${exec.email} (Name: ${exec.name}, Role: ${exec.role})`);
+  console.log(`Seeded 6 Indian Enterprise Customers across roles.`);
   console.log('--------------------\n');
 
   await mongoose.disconnect();
   console.log('Seed completed successfully. Database disconnected.');
 };
 
-seedUsers().catch((err) => {
+seedData().catch((err) => {
   console.error('Seed process failed:', err);
   mongoose.disconnect().finally(() => process.exit(1));
 });

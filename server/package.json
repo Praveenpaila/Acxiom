@@ -7,7 +7,9 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "seed": "node scripts/seed.js",
-    "test": "node scripts/testAuth.js"
+    "test": "node scripts/testAuth.js && node scripts/testCustomers.js",
+    "test:auth": "node scripts/testAuth.js",
+    "test:customers": "node scripts/testCustomers.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
