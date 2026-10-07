@@ -7,6 +7,7 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Customer = require('../models/Customer');
+const Lead = require('../models/Lead');
 
 const seedData = async () => {
   const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/acxiom_crm';
@@ -191,11 +192,91 @@ const seedData = async () => {
     }
   }
 
+  // 5. Seed realistic Indian enterprise leads
+  const sampleLeads = [
+    {
+      leadCode: 'LEAD-1001',
+      name: 'Aditi Rao',
+      email: 'aditi.rao@zomato-demo.in',
+      phone: '9811002233',
+      company: 'Zomato Media Private Limited',
+      source: 'LinkedIn',
+      status: 'New',
+      expectedValue: 450000,
+      assignedTo: exec._id,
+      createdBy: exec._id,
+      notes: 'Expressed interest in multi-region sales pipeline module.',
+    },
+    {
+      leadCode: 'LEAD-1002',
+      name: 'Kunal Shah',
+      email: 'kunal@cred-demo.in',
+      phone: '9822002233',
+      company: 'Dreamplug Technologies (CRED)',
+      source: 'Referral',
+      status: 'Contacted',
+      expectedValue: 800000,
+      assignedTo: exec._id,
+      createdBy: manager._id,
+      notes: 'Initial discovery call held. Shared pricing matrix.',
+    },
+    {
+      leadCode: 'LEAD-1003',
+      name: 'Ritu Verma',
+      email: 'ritu.verma@nykaa-demo.in',
+      phone: '9833002233',
+      company: 'FSN E-Commerce Ventures (Nykaa)',
+      source: 'Website',
+      status: 'Qualified',
+      expectedValue: 1200000,
+      assignedTo: manager._id,
+      createdBy: manager._id,
+      notes: 'Budget sanctioned for Q4. Ready for contract proposal.',
+    },
+    {
+      leadCode: 'LEAD-1004',
+      name: 'Harish Nambiar',
+      email: 'harish@swiggy-demo.in',
+      phone: '9844002233',
+      company: 'Bundl Technologies (Swiggy)',
+      source: 'Trade Show',
+      status: 'Unqualified',
+      expectedValue: 250000,
+      assignedTo: exec._id,
+      createdBy: exec._id,
+      notes: 'Timing not right. Follow up next fiscal year.',
+    },
+    {
+      leadCode: 'LEAD-1005',
+      name: 'Pooja Bhatt',
+      email: 'pooja@paytm-demo.in',
+      phone: '9855002233',
+      company: 'One97 Communications (Paytm)',
+      source: 'Cold Call',
+      status: 'Lost',
+      expectedValue: 600000,
+      assignedTo: admin._id,
+      createdBy: admin._id,
+      notes: 'Chose competitor for in-house payment integration.',
+    },
+  ];
+
+  for (const lData of sampleLeads) {
+    const existing = await Lead.findOne({ email: lData.email });
+    if (!existing) {
+      await Lead.create(lData);
+      console.log(`Seeded Lead: ${lData.leadCode} - ${lData.company}`);
+    } else {
+      await Lead.findByIdAndUpdate(existing._id, lData);
+      console.log(`Updated Lead: ${lData.leadCode} - ${lData.company}`);
+    }
+  }
+
   console.log('\n--- Seed Summary ---');
   console.log(`1. Admin:          ${admin.email} (Name: ${admin.name}, Role: ${admin.role})`);
   console.log(`2. Manager:        ${manager.email} (Name: ${manager.name}, Role: ${manager.role})`);
   console.log(`3. SalesExecutive: ${exec.email} (Name: ${exec.name}, Role: ${exec.role})`);
-  console.log(`Seeded 6 Indian Enterprise Customers across roles.`);
+  console.log(`Seeded 6 Customers and 5 Leads across roles.`);
   console.log('--------------------\n');
 
   await mongoose.disconnect();
